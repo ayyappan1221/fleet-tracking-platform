@@ -1,0 +1,68 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+env.bak/
+.venv.bak/
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+ENV/
+env/
+
+# Type checker
+.tox/
+.nox/
+coverage/
+.pytest_cache/
+coverage.xml
+*.coveragerc
+
+# Backend database and API stuff
+*.sqlite
+*.db
+.DB-store
+
+# OS
+.DS_Store
+
+# VS Code
+.vscode/*
+!.vscode/extensions.json
+
+# Env files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
