@@ -1,0 +1,92 @@
+// Entity-Relationship Diagram v1
+// Vehicle Tracking & Fleet Monitoring Platform
+// Generated for Day 11 Review-I
+
+Table users {
+  id int [pk] [auto]
+  email varchar(255) [unique]
+  name varchar(100)
+  password_hash varchar(255)
+  role varchar(20) [default: 'driver']
+  is_active boolean [default: true]
+  created_at datetime
+}
+
+Table vehicles {
+  id int [pk] [auto]
+  owner_id int [ref: > users.id]
+  fleet_id varchar(50)
+  license_plate varchar(20) [unique]
+  make varchar(50)
+  model varchar(50)
+  year int
+  vin varchar(50)
+  status varchar(20) [default: 'active']
+  current_mileage decimal
+  created_at datetime
+}
+
+Table locations {
+  id int [pk] [auto]
+  vehicle_id int [ref: > vehicles.id]
+  latitude decimal
+  longitude decimal
+  speed decimal
+  timestamp datetime
+  ignition_status boolean
+}
+
+Table routes {
+  id int [pk] [auto]
+  vehicle_id int [ref: > vehicles.id]
+  driver_id int [ref: > users.id]
+  start_time datetime
+  end_time datetime
+  distance_km decimal
+  status varchar(20) [default: 'planned']
+}
+
+Table route_stops {
+  id int [pk] [auto]
+  route_id int [ref: > routes.id]
+  sequence int
+  latitude decimal
+  longitude decimal
+  address varchar(255)
+  planned_arrival datetime
+  actual_arrival datetime
+  status varchar(20) [default: 'pending']
+}
+
+Table maintenance_records {
+  id int [pk] [auto]
+  vehicle_id int [ref: > vehicles.id]
+  odometer_reading decimal
+  service_type varchar(100)
+  description text
+  cost decimal
+  scheduled_date date
+  completed_date date
+  status varchar(20) [default: 'scheduled']
+}
+
+Table alerts {
+  id int [pk] [auto]
+  vehicle_id int [ref: > vehicles.id]
+  driver_id int [ref: > users.id]
+  type varchar(50)
+  message text
+  severity varchar(20)
+  timestamp datetime
+  acknowledged boolean
+}
+
+Table geofences {
+  id int [pk] [auto]
+  name varchar(100)
+  center_lat decimal
+  center_lng decimal
+  radius_meters int
+  created_by int [ref: > users.id]
+  vehicle_id int [ref: > vehicles.id] [null]
+}
