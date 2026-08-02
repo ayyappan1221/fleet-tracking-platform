@@ -8,7 +8,9 @@ This platform lets fleet managers track vehicles on a live map, drivers follow o
 
 ## Architecture Diagram
 
-![Architecture](docs/diagrams/architecture.png)
+![Architecture](docs/diagrams/architecture_v1.png)
+![ER Diagram](docs/diagrams/er_diagram_v1.png)
+![Class Diagram](docs/diagrams/class_diagram_v1.png)
 
 ## Tech Stack
 
@@ -16,7 +18,7 @@ This platform lets fleet managers track vehicles on a live map, drivers follow o
 |:--------------|:------------------------------------------------|
 | Frontend      | React.js + Tailwind CSS + Leaflet maps          |
 | Backend       | FastAPI (Python 3.11)                           |
-| Auth          | python-jose + passlib/bcrypt                    |
+| Auth          | python-jose + bcrypt                            |
 | ORM           | SQLAlchemy 2.0                                  |
 | Database      | PostgreSQL 15                                   |
 | API Docs      | FastAPI auto-generated Swagger UI               |
@@ -42,15 +44,16 @@ This platform lets fleet managers track vehicles on a live map, drivers follow o
 ### Prerequisites
 
 - Python 3.11+
-- PostgreSQL 15 (or Docker)
 - Node.js 20+ and npm (for frontend)
+
+The backend runs out of the box with SQLite — no database server needed for local development. PostgreSQL is only required if you want to run in production mode.
 
 ### Setup (Backend)
 
 ```bash
 # Clone the repo
-git clone https://github.com/your-username/vehicle-fleet-platform.git
-cd vehicle-fleet-platform
+git clone https://github.com/ayyappan1221/fleet-tracking-platform.git
+cd fleet-tracking-platform
 
 # Create and activate virtual environment
 python -m venv .venv
@@ -60,12 +63,14 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
 # Copy env file and set your values
-cp .env.example .env
-# Edit .env with your database credentials
+cp .env.example .env  # On Windows: copy .env.example .env
+# Leave DATABASE_URL as sqlite:///./fleet.db to use SQLite (no setup needed)
 
 # Run the server
 uvicorn app.main:app --reload --port 8000
 ```
+
+The database tables are created automatically on startup.
 
 API docs will be available at `http://localhost:8000/docs`
 
@@ -73,8 +78,8 @@ API docs will be available at `http://localhost:8000/docs`
 
 | Variable                  | Description                        | Required |
 |:--------------------------|:-----------------------------------|:--------:|
-| DATABASE_URL            | PostgreSQL connection string       | Y        |
-| SECRET_KEY              | JWT signing secret                 | Y        |
+| DATABASE_URL            | Database connection string         | N        |
+| SECRET_KEY              | JWT signing secret                 | N        |
 | ALGORITHM               | JWT algorithm (HS256)              | N        |
 | ACCESS_TOKEN_EXPIRE_MINUTES | Token expiry in minutes         | N        |
 | DEBUG                   | Debug mode                         | N        |
@@ -83,6 +88,24 @@ API docs will be available at `http://localhost:8000/docs`
 ### API Documentation
 
 Live Swagger UI at `http://localhost:8000/docs`
+
+### API Endpoints
+
+| Method   | Endpoint                         | Description                          |
+|:---------|:---------------------------------|:-------------------------------------|
+| POST     | `/api/auth/register`             | Register a new user                  |
+| POST     | `/api/auth/login`                | Login and get JWT token              |
+| POST     | `/api/vehicles/`                 | Add a vehicle to the fleet           |
+| GET      | `/api/vehicles/`                 | List all vehicles                    |
+| GET      | `/api/vehicles/{id}`             | Get a single vehicle                  |
+| PATCH    | `/api/vehicles/{id}`             | Update vehicle details                |
+| DELETE   | `/api/vehicles/{id}`             | Remove a vehicle                     |
+| POST     | `/api/routes/`                   | Plan a new route with stops           |
+| GET      | `/api/routes/`                   | List all routes                       |
+| GET      | `/api/routes/{id}`               | Get a single route with stops         |
+| POST     | `/api/routes/{id}/start`         | Start a planned route                 |
+| POST     | `/api/routes/{id}/complete`      | Mark a route as completed             |
+| POST     | `/api/stops/{id}/arrive`         | Mark a stop as arrived               |
 
 ### Running Tests
 

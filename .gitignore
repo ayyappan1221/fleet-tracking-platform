@@ -61,6 +61,10 @@ coverage.xml
 # Logs
 *.log
 
+# SQLite database files
+*.db
+*.sqlite3
+
 # IDE
 .idea/
 *.swp
