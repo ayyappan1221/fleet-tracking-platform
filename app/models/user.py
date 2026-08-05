@@ -1,4 +1,6 @@
-﻿from datetime import datetime, timezone
+﻿"""User model for authentication and roles."""
+
+from datetime import datetime, timezone
 
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -6,11 +8,9 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.core.database import Base
 
 
-class UserRole(str):
-    pass
-
-
 class User(Base):
+    """A user account who can log in to the platform."""
+
     __tablename__ = 'users'
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
