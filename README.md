@@ -37,14 +37,15 @@ This platform lets fleet managers track vehicles on a live map, drivers follow o
 
 ## Screenshots
 
-![Dashboard](docs/screenshots/dashboard-placeholder.png)
+![Login](docs/screenshots/login.png)
+![Dashboard](docs/screenshots/dashboard.png)
 
 ## Getting Started
 
 ### Prerequisites
 
 - Python 3.11+
-- Node.js 20+ and npm (for frontend)
+- Node.js 20+ (for the React frontend)
 
 The backend runs out of the box with SQLite — no database server needed for local development. PostgreSQL is only required if you want to run in production mode.
 
@@ -74,6 +75,17 @@ The database tables are created automatically on startup.
 
 API docs will be available at `http://localhost:8000/docs`
 
+### Setup (Frontend)
+
+```bash
+# In a second terminal, from the repo root
+cd frontend
+npm install
+npm run dev
+```
+
+The Vite dev server starts on `http://localhost:5173` and proxies all `/api` requests to the FastAPI backend on port 8000. Use the login page with an account created via the register endpoint (or Swagger's `/api/auth/register`) to sign in and manage vehicles.
+
 ### Environment Variables
 
 | Variable                  | Description                        | Required |
@@ -91,21 +103,21 @@ Live Swagger UI at `http://localhost:8000/docs`
 
 ### API Endpoints
 
-| Method   | Endpoint                         | Description                          |
-|:---------|:---------------------------------|:-------------------------------------|
-| POST     | `/api/auth/register`             | Register a new user                  |
-| POST     | `/api/auth/login`                | Login and get JWT token              |
-| POST     | `/api/vehicles/`                 | Add a vehicle to the fleet           |
-| GET      | `/api/vehicles/`                 | List all vehicles                    |
-| GET      | `/api/vehicles/{id}`             | Get a single vehicle                  |
-| PATCH    | `/api/vehicles/{id}`             | Update vehicle details                |
-| DELETE   | `/api/vehicles/{id}`             | Remove a vehicle                     |
-| POST     | `/api/routes/`                   | Plan a new route with stops           |
-| GET      | `/api/routes/`                   | List all routes                       |
-| GET      | `/api/routes/{id}`               | Get a single route with stops         |
-| POST     | `/api/routes/{id}/start`         | Start a planned route                 |
-| POST     | `/api/routes/{id}/complete`      | Mark a route as completed             |
-| POST     | `/api/stops/{id}/arrive`         | Mark a stop as arrived               |
+| Method   | Endpoint                         | Description                          | Auth |
+|:---------|:---------------------------------|:-------------------------------------|:----:|
+| POST     | `/api/auth/register`             | Register a new user                  | No   |
+| POST     | `/api/auth/login`                | Login and get JWT token              | No   |
+| POST     | `/api/vehicles/`                 | Add a vehicle to the fleet           | Yes  |
+| GET      | `/api/vehicles/`                 | List all vehicles                    | Yes  |
+| GET      | `/api/vehicles/{id}`             | Get a single vehicle                  | Yes  |
+| PATCH    | `/api/vehicles/{id}`             | Update vehicle details                | Yes  |
+| DELETE   | `/api/vehicles/{id}`             | Remove a vehicle                     | Yes  |
+| POST     | `/api/routes/`                   | Plan a new route with stops           | Yes  |
+| GET      | `/api/routes/`                   | List all routes                       | Yes  |
+| GET      | `/api/routes/{id}`               | Get a single route with stops         | Yes  |
+| POST     | `/api/routes/{id}/start`         | Start a planned route                 | Yes  |
+| POST     | `/api/routes/{id}/complete`      | Mark a route as completed             | Yes  |
+| POST     | `/api/stops/{id}/arrive`         | Mark a stop as arrived               | Yes  |
 
 ### Running Tests
 
@@ -128,6 +140,7 @@ app/
   models/       # SQLAlchemy ORM models
   schemas/      # Pydantic request/response schemas
   services/     # Business logic
+frontend/       # React (Vite) web app
 tests/          # Unit tests
 docs/           # Diagrams and API contract
 ```
@@ -146,4 +159,4 @@ MIT
 
 ### Author
 
-[Your Name] - Student, Semester 5 Capstone Project
+Ayyappan - Student, Semester 5 Capstone Project
