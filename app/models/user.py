@@ -1,4 +1,4 @@
-﻿"""User model for authentication and roles."""
+"""User model for authentication and roles."""
 
 from datetime import datetime, timezone
 

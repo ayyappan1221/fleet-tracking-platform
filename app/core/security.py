@@ -1,4 +1,4 @@
-﻿"""Password hashing and JWT helpers."""
+"""Password hashing and JWT helpers."""
 
 from datetime import datetime, timedelta, timezone
 
