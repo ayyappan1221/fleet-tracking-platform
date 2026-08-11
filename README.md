@@ -8,9 +8,9 @@ This platform lets fleet managers track vehicles on a live map, drivers follow o
 
 ## Architecture Diagram
 
-![Architecture](docs/diagrams/architecture_v1.png)
-![ER Diagram](docs/diagrams/er_diagram_v1.png)
-![Class Diagram](docs/diagrams/class_diagram_v1.png)
+[Architecture](docs/diagrams/architecture.md)
+[ER Diagram](docs/diagrams/er_diagram.md)
+[Class Diagram](docs/diagrams/class_diagram.md)
 
 ## Tech Stack
 
@@ -37,8 +37,7 @@ This platform lets fleet managers track vehicles on a live map, drivers follow o
 
 ## Screenshots
 
-![Login](docs/screenshots/login.png)
-![Dashboard](docs/screenshots/dashboard.png)
+_Add screenshots of the login and dashboard screens once the UI is final._
 
 ## Getting Started
 
