@@ -1,3 +1,4 @@
+"""Vehicle model representing a single asset in the fleet."""
 from datetime import datetime, timezone
 from decimal import Decimal
 
@@ -8,6 +9,7 @@ from app.core.database import Base
 
 
 class Vehicle(Base):
+    """A vehicle owned by a user, with current status and mileage."""
     __tablename__ = "vehicles"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -30,4 +32,5 @@ class Vehicle(Base):
     routes = relationship("Route", back_populates="vehicle", cascade="all, delete-orphan")
 
     def __repr__(self):
+        """Human readable label for logs and debugging."""
         return f"<Vehicle {self.license_plate} ({self.make} {self.model})>"

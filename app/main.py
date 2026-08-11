@@ -1,3 +1,4 @@
+"""FastAPI application entry point for the fleet tracking platform."""
 from fastapi import FastAPI
 
 from app.api.v1 import router as api_v1_router
@@ -13,6 +14,7 @@ app = FastAPI(
 
 @app.on_event("startup")
 def create_tables() -> None:
+    """Create any missing tables so a fresh database works out of the box."""
     Base.metadata.create_all(bind=engine)
 
 
@@ -21,4 +23,5 @@ app.include_router(api_v1_router, prefix="/api")
 
 @app.get("/")
 async def root():
+    """Health check endpoint."""
     return {"message": "Fleet Tracking API is running. Check /docs for API documentation."}

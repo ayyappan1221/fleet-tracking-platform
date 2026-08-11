@@ -1,3 +1,4 @@
+"""Route and RouteStop models for trip planning and tracking."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -17,6 +18,7 @@ from app.core.database import Base
 
 
 class Route(Base):
+    """A planned trip for one vehicle across a sequence of stops."""
     __tablename__ = "routes"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -34,10 +36,12 @@ class Route(Base):
     stops = relationship("RouteStop", back_populates="route", cascade="all, delete-orphan")
 
     def __repr__(self):
+        """Human readable label for logs and debugging."""
         return f"<Route id={self.id} status={self.status}>"
 
 
 class RouteStop(Base):
+    """One stop along a route, with planned and actual arrival times."""
     __tablename__ = "route_stops"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -53,4 +57,5 @@ class RouteStop(Base):
     route = relationship("Route", back_populates="stops")
 
     def __repr__(self):
+        """Human readable label for logs and debugging."""
         return f"<RouteStop route_id={self.route_id} seq={self.sequence}>"

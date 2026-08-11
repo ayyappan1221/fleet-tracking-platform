@@ -1,3 +1,4 @@
+"""Application settings, read from environment variables or .env."""
 import os
 from pathlib import Path
 
@@ -8,6 +9,7 @@ load_dotenv(BASE_DIR / ".env")
 
 
 def _get_env(key: str, default: str = "", required: bool = False) -> str:
+    """Read one environment variable, falling back to a default."""
     value = os.getenv(key, default)
     if required and not value:
         raise RuntimeError(f"Missing required environment variable: {key}")
@@ -15,6 +17,7 @@ def _get_env(key: str, default: str = "", required: bool = False) -> str:
 
 
 class Settings:
+    """Typed access to all configured values, one attribute per variable."""
     # App
     APP_ENV: str = _get_env("APP_ENV", "development")
     DEBUG: bool = _get_env("DEBUG", "true").lower() == "true"

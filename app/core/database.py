@@ -1,3 +1,4 @@
+"""Database engine, session factory, and the ORM base class."""
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
@@ -8,10 +9,11 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 class Base(DeclarativeBase):
-    pass
+    """Base class every ORM model inherits from."""
 
 
 def get_db():
+    """Yield a database session and always close it afterwards."""
     db = SessionLocal()
     try:
         yield db
