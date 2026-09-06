@@ -25,6 +25,7 @@ class RouteStopRead(RouteStopBase):
     """Stop record as persisted, including arrival status."""
     id: int
     route_id: int
+    sequence: int = Field(..., ge=1)
     actual_arrival: Optional[datetime] = None
     status: str = "pending"
 

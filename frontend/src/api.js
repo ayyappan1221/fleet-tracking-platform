@@ -1,9 +1,9 @@
 import axios from 'axios'
 
-// axios instance pointed at the Vite proxy (/api goes to :8000).
-const client = axios.create({ baseURL: '/api' })
+const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || '/api' })
 
 export function authHeaders(token) {
+  if (!token) return {}
   return { Authorization: `Bearer ${token}` }
 }
 
@@ -12,12 +12,25 @@ export default {
     const body = new URLSearchParams()
     body.append('username', email)
     body.append('password', password)
-    return client.post('/auth/login', body)
+    return api.post('/auth/login', body)
+  },
+  register(data) {
+    return api.post('/auth/register', data, { headers: { 'Content-Type': 'application/json' } })
   },
   get(path, token) {
-    return client.get(path, { headers: authHeaders(token) })
+    const headers = token ? authHeaders(token) : {}
+    return api.get(path, { headers })
   },
   post(path, data, token) {
-    return client.post(path, data, { headers: authHeaders(token) })
+    const headers = { 'Content-Type': 'application/json', ...authHeaders(token) }
+    return api.post(path, data, { headers })
+  },
+  patch(path, data, token) {
+    const headers = { 'Content-Type': 'application/json', ...authHeaders(token) }
+    return api.patch(path, data, { headers })
+  },
+  del(path, token) {
+    const headers = token ? authHeaders(token) : {}
+    return api.delete(path, { headers })
   },
 }
