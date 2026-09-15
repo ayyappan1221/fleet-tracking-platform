@@ -37,7 +37,15 @@ This platform lets fleet managers track vehicles on a live map, drivers follow o
 
 ## Screenshots
 
-_Add screenshots of the login and dashboard screens once the UI is final._
+| Screen | Preview |
+|:-------|:--------|
+| Login | ![Login](docs/screenshots/login.png) |
+| Dashboard | ![Dashboard](docs/screenshots/dashboard.png) |
+| Vehicles | ![Vehicles](docs/screenshots/vehicles.png) |
+| Route Planning | ![Route Planning](docs/screenshots/route_planning.png) |
+| Live Map | ![Live Map](docs/screenshots/live_map.png) |
+| Alerts | ![Alerts](docs/screenshots/alerts.png) |
+| Maintenance | ![Maintenance](docs/screenshots/maintenance.png) |
 
 ## Getting Started
 
@@ -87,14 +95,18 @@ The Vite dev server starts on `http://localhost:5173` and proxies all `/api` req
 
 ### Environment Variables
 
-| Variable                  | Description                        | Required |
-|:--------------------------|:-----------------------------------|:--------:|
-| DATABASE_URL            | Database connection string         | N        |
-| SECRET_KEY              | JWT signing secret                 | N        |
-| ALGORITHM               | JWT algorithm (HS256)              | N        |
-| ACCESS_TOKEN_EXPIRE_MINUTES | Token expiry in minutes         | N        |
-| DEBUG                   | Debug mode                         | N        |
-| APP_PORT                | Server port                        | N        |
+| Variable                    | Description                                          | Default                          |
+|:----------------------------|:-----------------------------------------------------|:---------------------------------|
+| DATABASE_URL                | Database connection string (SQLite or Postgres)       | `sqlite:///./fleet.db`           |
+| SECRET_KEY                  | JWT signing secret                                   | `dev-secret-key-change-in-pro…`  |
+| ALGORITHM                   | JWT algorithm                                        | `HS256`                          |
+| ACCESS_TOKEN_EXPIRE_MINUTES | Token lifetime in minutes                            | `480`                            |
+| BCRYPT_ROUNDS               | Bcrypt hashing rounds                                | `12`                             |
+| DEBUG                       | Debug mode (true/false)                              | `true`                           |
+| APP_ENV                     | Environment name (`development` / `production`)      | `development`                    |
+| APP_HOST                    | Bind address for uvicorn                             | `0.0.0.0`                       |
+| APP_PORT                    | Server port                                          | `8000`                           |
+| FRONTEND_ORIGIN             | Allowed CORS origins (comma-separated)               | `http://localhost:5173`          |
 
 ### API Documentation
 
@@ -102,21 +114,44 @@ Live Swagger UI at `http://localhost:8000/docs`
 
 ### API Endpoints
 
-| Method   | Endpoint                         | Description                          | Auth |
-|:---------|:---------------------------------|:-------------------------------------|:----:|
-| POST     | `/api/auth/register`             | Register a new user                  | No   |
-| POST     | `/api/auth/login`                | Login and get JWT token              | No   |
-| POST     | `/api/vehicles/`                 | Add a vehicle to the fleet           | Yes  |
-| GET      | `/api/vehicles/`                 | List all vehicles                    | Yes  |
-| GET      | `/api/vehicles/{id}`             | Get a single vehicle                  | Yes  |
-| PATCH    | `/api/vehicles/{id}`             | Update vehicle details                | Yes  |
-| DELETE   | `/api/vehicles/{id}`             | Remove a vehicle                     | Yes  |
-| POST     | `/api/routes/`                   | Plan a new route with stops           | Yes  |
-| GET      | `/api/routes/`                   | List all routes                       | Yes  |
-| GET      | `/api/routes/{id}`               | Get a single route with stops         | Yes  |
-| POST     | `/api/routes/{id}/start`         | Start a planned route                 | Yes  |
-| POST     | `/api/routes/{id}/complete`      | Mark a route as completed             | Yes  |
-| POST     | `/api/stops/{id}/arrive`         | Mark a stop as arrived               | Yes  |
+All responses use the `ApiResponse` envelope: `{ "success": bool, "data": <payload>, "message": str }`.
+
+| Method   | Endpoint                                      | Description                          | Auth |
+|:---------|:----------------------------------------------|:-------------------------------------|:----:|
+| **Authentication** ||||
+| POST     | `/api/auth/register`                          | Register a new user                  | No   |
+| POST     | `/api/auth/login`                             | Login and get JWT token              | No   |
+| **Vehicles** ||||
+| POST     | `/api/vehicles/`                              | Add a vehicle to the fleet           | Yes  |
+| GET      | `/api/vehicles/`                              | List all vehicles                    | Yes  |
+| GET      | `/api/vehicles/{id}`                          | Get a single vehicle                 | Yes  |
+| PATCH    | `/api/vehicles/{id}`                          | Update vehicle details               | Yes  |
+| DELETE   | `/api/vehicles/{id}`                          | Remove a vehicle                     | Yes  |
+| **Routes** ||||
+| POST     | `/api/routes/`                                | Plan a new route with stops          | Yes  |
+| GET      | `/api/routes/`                                | List all routes                      | Yes  |
+| GET      | `/api/routes/{id}`                            | Get a single route with stops        | Yes  |
+| POST     | `/api/routes/{id}/start`                      | Start a planned route                | Yes  |
+| POST     | `/api/routes/{id}/complete`                   | Mark a route as completed            | Yes  |
+| POST     | `/api/routes/stops/{id}/arrive`               | Mark a stop as arrived               | Yes  |
+| **Locations** ||||
+| POST     | `/api/locations/`                             | Record a GPS location for a vehicle  | Yes  |
+| GET      | `/api/locations/`                             | List all locations (filterable)      | Yes  |
+| GET      | `/api/locations/vehicle/{id}/latest`          | Get latest location for a vehicle    | Yes  |
+| **Dashboard** ||||
+| GET      | `/api/dashboard/summary`                      | Aggregated fleet statistics          | Yes  |
+| **Alerts** ||||
+| POST     | `/api/alerts/`                                | Create a fleet alert                 | Yes  |
+| GET      | `/api/alerts/`                                | List alerts (filterable)             | Yes  |
+| PATCH    | `/api/alerts/{id}/read`                       | Mark an alert as read                | Yes  |
+| **Geofences** ||||
+| POST     | `/api/geofences/`                             | Create a geofence boundary           | Yes  |
+| GET      | `/api/geofences/`                             | List geofences for current user      | Yes  |
+| PATCH    | `/api/geofences/{id}`                         | Update geofence details              | Yes  |
+| **Maintenance** ||||
+| POST     | `/api/maintenance/`                           | Create a maintenance record          | Yes  |
+| GET      | `/api/maintenance/`                           | List maintenance records (filterable)| Yes  |
+| PATCH    | `/api/maintenance/{id}`                       | Update a maintenance record          | Yes  |
 
 ### Running Tests
 

@@ -1,4 +1,6 @@
-# ER Diagram v1
+# ER Diagram v2
+
+Updated to reflect all 8 database tables implemented across 8 API routers.
 
 ```mermaid
 erDiagram
@@ -102,4 +104,4 @@ erDiagram
     }
 ```
 
-Source: [`er_diagram_v1.dbml`](./er_diagram_v1.dbml) (dbdiagram.io).
+Source: derived from SQLAlchemy models in `app/models/` — 8 tables: users, vehicles, locations, routes, route_stops, maintenance_records, alerts, geofences.
