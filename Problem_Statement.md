@@ -70,3 +70,32 @@ What the application will do:
 ## 10. Chosen Track
 
 Python (FastAPI)
+
+---
+
+## Scope Update (Review-II, 2026-09-20)
+
+This section maps the original problem statement scope to the implemented state at Review-II.
+
+### Implemented (live)
+
+| Problem Statement Feature | Status | Implementation |
+|:--------------------------|:------:|:---------------|
+| Real-time GPS tracking | Done | Locations router: POST/GET pings, vehicle latest lookup |
+| Route history and replay | Done | Routes router with stops, lifecycle (plan/start/arrive/complete) |
+| Basic route optimization | Done | Nearest-neighbor multi-stop optimizer in route_service |
+| Maintenance scheduler | Done | Maintenance router: CRUD with type/status enums |
+| Alert system | Done | Alerts router: create, list, mark-as-read |
+| Admin dashboard | Done | Dashboard summary endpoint + frontend with 7 stat cards |
+| Mobile-responsive frontend | Done | React + Tailwind; login, vehicles, routes, locations, alerts, geofences, maintenance, dashboard pages |
+| Geofence management | Done | Geofences router: CRUD, per-user filtering |
+
+### Out of scope (per original Section 9, unchanged)
+
+- Actual hardware GPS device integration (simulated via API)
+- Native mobile app (responsive web only)
+- AI route optimization with live traffic data
+- Predictive maintenance ML model (Day 42-60 feature)
+- Multi-company / multi-tenant support
+- Driver behavior scoring (speeding, braking, acceleration metrics)
+- Email/SMS notification delivery (alert records created, no external delivery)

@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-20 (Review-II Release)
+
+### Added
+- 5 new API routers: locations (3 endpoints), dashboard (1 endpoint), alerts (3 endpoints), geofences (3 endpoints), maintenance (3 endpoints)
+- 27 total API endpoints across 8 routers (auth, vehicles, routes, locations, dashboard, alerts, geofences, maintenance)
+- Dashboard aggregation service returning 7 fleet statistics
+- CRUD services for locations, alerts, geofences, and maintenance
+- Frontend Routes page with route planning, multi-stop management, and lifecycle actions (start/arrive/complete)
+- Frontend Locations page with GPS pinger form, location listing, and latest-lookup
+- Frontend Dashboard aligned to all 7 backend summary keys
+- GitHub Actions CI pipeline (backend pytest + frontend build)
+- 43 pytest tests across 10 test files with 40%+ service coverage
+- Production config hardening: Postgres URL normalization, multi-origin CORS, SQLite thread-safety, lifespan startup
+- ER diagram v2 covering all 8 database tables
+- README v2 with 27-row endpoint table, env vars, and deploy instructions
+
+### Changed
+- Maintenance GET list key contract: dual-key (`maintenance` + `records`) for backward compatibility
+- Dashboard cards: 6 → 7 cards matching backend schema
+
 ## [0.1.0] - Day 1 (Problem Statement Finalization)
 
 ### Added

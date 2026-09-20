@@ -53,6 +53,9 @@ coverage.xml
 .vscode/*
 !.vscode/extensions.json
 
+# Node
+node_modules/
+
 # Env files
 .env
 .env.local
