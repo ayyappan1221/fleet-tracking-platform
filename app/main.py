@@ -7,13 +7,36 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1 import router as api_v1_router
 from app.core.config import settings
-from app.core.database import Base, engine
+from app.core.database import Base, SessionLocal, engine
 from app import models  # importing models registers them for create_all
+
+
+DEMO_USERS = [
+    {"email": "manager@fleet.com", "name": "Demo Manager", "password": "Password@123", "role": "manager"},
+    {"email": "driver@fleet.com", "name": "Demo Driver", "password": "Password@123", "role": "driver"},
+    {"email": "mechanic@fleet.com", "name": "Demo Mechanic", "password": "Password@123", "role": "mechanic"},
+]
+
+
+def _seed_demo_users():
+    from app.core.security import hash_password
+    from app.models.user import User
+
+    db = SessionLocal()
+    try:
+        for u in DEMO_USERS:
+            exists = db.query(User).filter(User.email == u["email"]).first()
+            if not exists:
+                db.add(User(email=u["email"], name=u["name"], password_hash=hash_password(u["password"]), role=u["role"]))
+        db.commit()
+    finally:
+        db.close()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     Base.metadata.create_all(bind=engine)
+    _seed_demo_users()
     yield
 
 
