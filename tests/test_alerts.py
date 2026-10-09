@@ -21,6 +21,9 @@ def client():
         db = TestingSessionLocal()
         try:
             yield db
+        except Exception:
+            db.rollback()
+            raise
         finally:
             db.close()
 
@@ -33,18 +36,28 @@ def client():
 
 def _auth_headers(client, email="alert@test.com"):
     """Helper: register + login via form data, return Bearer headers."""
-    client.post(
+    reg = client.post(
         "/api/auth/register",
         json={
             "email": email,
             "name": "Alert Tester",
-            "password": "secret123",
+            "password": "Secret123!",
             "role": "manager",
         },
     )
+    assert reg.status_code == 201, reg.text
+    verify = client.post(
+        "/api/auth/verify-signup",
+        json={
+            "email": email,
+            "code": reg.json()["data"]["dev_otp"],
+            "purpose": "signup_verify",
+        },
+    )
+    assert verify.status_code == 200, verify.text
     login = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "secret123"},
+        data={"username": email, "password": "Secret123!"},
     )
     token = login.json()["data"]["access_token"]
     return {"Authorization": f"Bearer {token}"}

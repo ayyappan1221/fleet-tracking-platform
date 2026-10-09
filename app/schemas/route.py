@@ -57,6 +57,7 @@ class RouteRead(RouteBase):
     status: str
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
+    score: Optional[float] = None
     stops: List[RouteStopRead] = []
 
     model_config = {"from_attributes": True}

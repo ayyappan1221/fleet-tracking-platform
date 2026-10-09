@@ -1,7 +1,7 @@
 """
 Maintenance service layer - business logic for vehicle maintenance records.
 """
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone, timedelta
 from typing import List, Optional, Tuple
 
 from sqlalchemy import desc
@@ -23,6 +23,7 @@ def list_maintenance(
     status: Optional[str] = None,
     skip: int = 0,
     limit: int = 50,
+    vehicle_ids: Optional[list] = None,
 ) -> Tuple[List[Maintenance], int]:
     """
     Get a paginated list of maintenance records.
@@ -31,6 +32,8 @@ def list_maintenance(
     query = db.query(Maintenance)
     if vehicle_id:
         query = query.filter(Maintenance.vehicle_id == vehicle_id)
+    if vehicle_ids is not None:
+        query = query.filter(Maintenance.vehicle_id.in_(vehicle_ids))
     if status:
         query = query.filter(Maintenance.status == status)
 
@@ -60,6 +63,7 @@ def create_maintenance(db: Session, data: MaintenanceCreate) -> Maintenance:
         due_mileage=data.due_mileage,
         due_date=data.due_date,
         notes=data.notes,
+        cost=data.cost or 0,
     )
     db.add(record)
     db.commit()
@@ -100,3 +104,58 @@ def delete_maintenance(db: Session, maintenance_id: int) -> bool:
     db.delete(record)
     db.commit()
     return True
+
+
+def check_maintenance_due(db: Session, days_ahead: int = 7) -> List:
+    from app.models.alert import Alert
+
+    today = date.today()
+    horizon = today + timedelta(days=days_ahead)
+    records = db.query(Maintenance).filter(Maintenance.status != "completed").all()
+    created = []
+    for record in records:
+        if record.due_date is None:
+            continue
+        if not (today <= record.due_date <= horizon):
+            continue
+        marker = f"maintenance:{record.id}"
+        existing = db.query(Alert).filter(
+            Alert.vehicle_id == record.vehicle_id,
+            Alert.type == "maintenance",
+            Alert.message.like(f"%{marker}%"),
+        ).first()
+        if existing:
+            continue
+        alert = Alert(
+            vehicle_id=record.vehicle_id,
+            type="maintenance",
+            severity="warning",
+            message=f"Maintenance due soon: {record.type} for vehicle {record.vehicle_id} on {record.due_date} [{marker}]",
+        )
+        db.add(alert)
+        created.append(alert)
+    if created:
+        db.commit()
+        for alert in created:
+            db.refresh(alert)
+    return created
+
+
+def report_issue(db: Session, vehicle_id: int, description: str, issue_type: str = "repair") -> Maintenance:
+    vehicle = db.query(Vehicle).filter(Vehicle.id == vehicle_id).first()
+    if not vehicle:
+        raise ValueError(f"Vehicle {vehicle_id} not found")
+    if not description or not description.strip():
+        raise ValueError("Description is required")
+    allowed = {"oil_change", "tire", "inspection", "repair", "issue_report"}
+    mtype = issue_type if issue_type in allowed else "repair"
+    record = Maintenance(
+        vehicle_id=vehicle_id,
+        type=mtype,
+        status="pending",
+        notes=description.strip(),
+    )
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    return record

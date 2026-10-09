@@ -20,9 +20,12 @@ class Base(DeclarativeBase):
 
 
 def get_db():
-    """Yield a database session and always close it afterwards."""
+    """Yield a database session, rolling back on failure, always closing."""
     db = SessionLocal()
     try:
         yield db
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()

@@ -6,6 +6,10 @@ All endpoints are under /api/geofences and require a valid JWT.
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.authorization import (
+    is_manager,
+    require_geofence_access,
+)
 from app.core.database import get_db
 from app.core.responses import api_success
 from app.core.security import get_current_user
@@ -45,9 +49,10 @@ def list_geofences(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List geofences for the authenticated user."""
+    """List geofences: managers see the fleet, others see their own."""
+    owner_filter = None if is_manager(current_user) else current_user.id
     geofences, total = geofence_svc.list_geofences(
-        db, owner_id=current_user.id, skip=skip, limit=limit
+        db, owner_id=owner_filter, skip=skip, limit=limit
     )
     return api_success(
         {"geofences": geofences, "total": total},
@@ -63,6 +68,7 @@ def update_geofence(
     current_user: User = Depends(get_current_user),
 ):
     """Update geofence details (partial update)."""
+    require_geofence_access(db, geofence_id, current_user)
     geofence = geofence_svc.update_geofence(db, geofence_id, geofence_data)
     if not geofence:
         raise HTTPException(
@@ -70,3 +76,20 @@ def update_geofence(
             detail=f"Geofence {geofence_id} not found",
         )
     return api_success(geofence, "Geofence updated")
+
+
+@router.delete("/{geofence_id}", response_model=ApiResponse, status_code=status.HTTP_200_OK)
+def delete_geofence(
+    geofence_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete a geofence owned by the caller (managers may delete any)."""
+    require_geofence_access(db, geofence_id, current_user)
+    success = geofence_svc.delete_geofence(db, geofence_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Geofence {geofence_id} not found",
+        )
+    return api_success(None, "Geofence deleted")

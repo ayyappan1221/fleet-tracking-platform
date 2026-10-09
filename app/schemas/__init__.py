@@ -40,6 +40,17 @@ from app.schemas.maintenance import (
 )
 from app.schemas.dashboard import DashboardSummary
 from app.schemas.common import ApiResponse
+from app.schemas.fuel import (
+    FuelCreate,
+    FuelRead,
+    FuelListResponse,
+    FuelEfficiency,
+)
+from app.schemas.inspection import (
+    InspectionCreate,
+    InspectionRead,
+    InspectionListResponse,
+)
 
 __all__ = [
     "UserBase", "UserCreate", "UserRead", "TokenResponse", "TokenData",
@@ -50,6 +61,8 @@ __all__ = [
     "AlertCreate", "AlertRead", "AlertListResponse",
     "GeofenceCreate", "GeofenceUpdate", "GeofenceRead", "GeofenceListResponse",
     "MaintenanceCreate", "MaintenanceUpdate", "MaintenanceRead", "MaintenanceListResponse",
+    "FuelCreate", "FuelRead", "FuelListResponse", "FuelEfficiency",
+    "InspectionCreate", "InspectionRead", "InspectionListResponse",
     "DashboardSummary",
     "ApiResponse",
 ]

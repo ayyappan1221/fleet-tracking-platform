@@ -1,46 +1,47 @@
 import { useState, useEffect } from 'react'
 import api from '../api.js'
-
-const inputStyle = {
-  width: '100%',
-  marginTop: '6px',
-  padding: '10px',
-  border: '1px solid #ccd2d9',
-  borderRadius: '8px',
-  fontSize: '14px',
-}
-
-const labelStyle = {
-  display: 'block',
-  fontSize: '13px',
-  fontWeight: 600,
-  marginBottom: '14px',
-}
-
-const selectStyle = {
-  width: '100%',
-  marginTop: '6px',
-  padding: '10px',
-  border: '1px solid #ccd2d9',
-  borderRadius: '8px',
-  fontSize: '14px',
-  background: '#fff',
-}
-
-const btnSmall = {
-  width: 'auto',
-  padding: '6px 14px',
-  fontSize: '13px',
-  cursor: 'pointer',
-}
+import { errorMessage } from '../utils/errors.js'
+import RouteMap from '../components/RouteMap.jsx'
 
 const STATUSES = ['planned', 'in_progress', 'completed']
+
+const STATUS_BADGE = {
+  planned: 'badge-info',
+  in_progress: 'badge-warn',
+  completed: 'badge-success',
+}
+
+function statusLabel(s) {
+  return s.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+function StatusStepper({ status }) {
+  const order = ['planned', 'in_progress', 'completed']
+  const current = order.indexOf(status)
+  return (
+    <div className='stepper' aria-label={`Route status: ${statusLabel(status)}`}>
+      {order.map((s, i) => (
+        <span key={s} style={{ display: 'contents' }}>
+          {i > 0 && <span className='step-line' />}
+          <span className={`step ${i < current ? 'done' : ''} ${i === current ? 'active' : ''}`}>
+            <span className='step-dot'>{i + 1}</span>
+            {statusLabel(s)}
+          </span>
+        </span>
+      ))}
+    </div>
+  )
+}
 
 export default function RoutesPage() {
   const [routes, setRoutes] = useState([])
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
   const [statusFilter, setStatusFilter] = useState('')
+  const [expandedId, setExpandedId] = useState(null)
+  const [details, setDetails] = useState({})
+  const [detailLoading, setDetailLoading] = useState(false)
 
   // Plan form
   const [vehicleId, setVehicleId] = useState('')
@@ -56,13 +57,18 @@ export default function RoutesPage() {
       const res = await api.get('/routes/', token)
       setRoutes(res.data.data.routes)
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load routes.')
+      setError(errorMessage(err, 'Failed to load routes.'))
     }
   }
 
   useEffect(() => {
     fetchRoutes()
   }, [])
+
+  const flash = (msg) => {
+    setSuccess(msg)
+    window.setTimeout(() => setSuccess(''), 2500)
+  }
 
   const handleAddStop = () => {
     setStops([...stops, { latitude: '', longitude: '' }])
@@ -99,8 +105,9 @@ export default function RoutesPage() {
         { latitude: '', longitude: '' },
       ])
       fetchRoutes()
+      flash('Route planned.')
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to plan route.')
+      setError(errorMessage(err, 'Failed to plan route.'))
     } finally {
       setLoading(false)
     }
@@ -111,8 +118,9 @@ export default function RoutesPage() {
     try {
       await api.post(`/routes/${id}/start`, {}, token)
       fetchRoutes()
+      flash('Route started.')
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to start route.')
+      setError(errorMessage(err, 'Failed to start route.'))
     }
   }
 
@@ -121,8 +129,9 @@ export default function RoutesPage() {
     try {
       await api.post(`/routes/${id}/complete`, {}, token)
       fetchRoutes()
+      flash('Route completed.')
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to complete route.')
+      setError(errorMessage(err, 'Failed to complete route.'))
     }
   }
 
@@ -131,8 +140,40 @@ export default function RoutesPage() {
     try {
       await api.post(`/routes/stops/${stopId}/arrive`, {}, token)
       fetchRoutes()
+      if (expandedId) fetchDetail(expandedId, true)
+      flash('Stop marked arrived.')
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to mark stop arrived.')
+      setError(errorMessage(err, 'Failed to mark stop arrived.'))
+    }
+  }
+
+  const fetchDetail = async (id, force = false) => {
+    if (details[id] && !force) return details[id]
+    setDetailLoading(true)
+    try {
+      const res = await api.get(`/routes/${id}`, token)
+      const payload = res.data.data.route ?? res.data.data
+      setDetails((d) => ({ ...d, [id]: payload }))
+      return payload
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to load route detail.'))
+      return null
+    } finally {
+      setDetailLoading(false)
+    }
+  }
+
+  const toggleExpand = async (route) => {
+    if (expandedId === route.id) {
+      setExpandedId(null)
+      return
+    }
+    setExpandedId(route.id)
+    if (!route.stops || route.stops.length === 0) {
+      await fetchDetail(route.id)
+    } else if (!details[route.id]) {
+      setDetails((d) => ({ ...d, [route.id]: route }))
+      fetchDetail(route.id, true)
     }
   }
 
@@ -140,172 +181,235 @@ export default function RoutesPage() {
     ? routes.filter((r) => r.status === statusFilter)
     : routes
 
+  const expandedRoute = expandedId ? (details[expandedId] || routes.find((r) => r.id === expandedId)) : null
+  const expandedStops = expandedRoute?.stops || []
+
   return (
-    <div className='panel'>
-      <h2>Routes</h2>
+    <div>
+      <div className='page-head'>
+        <div>
+          <h2 className='page-title'>Routes</h2>
+          <p className='page-sub'>Plan multi-stop routes, track progress, and mark stops as arrived.</p>
+        </div>
+      </div>
+
       {error && <p className='error'>{error}</p>}
+      {success && <p className='success-note'>{success}</p>}
 
-      {/* Plan Route Form */}
-      <div style={{ marginBottom: '24px' }}>
-        <h3 style={{ fontSize: '14px', marginBottom: '12px' }}>Plan New Route</h3>
+      {/* Plan form */}
+      <div className='panel'>
+        <p className='panel-title'>Plan a new route</p>
+        <p className='panel-sub'>Pick a vehicle and add at least two stops in order.</p>
         <form onSubmit={handlePlanRoute}>
-          <label style={labelStyle}>
-            Vehicle ID
-            <input
-              style={inputStyle}
-              type='number'
-              value={vehicleId}
-              onChange={(e) => setVehicleId(e.target.value)}
-              required
-              min='1'
-            />
-          </label>
-
-          <div style={{ marginBottom: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <strong style={{ fontSize: '13px' }}>Stops (min 2)</strong>
-              <button
-                type='button'
-                onClick={handleAddStop}
-                style={{ ...btnSmall, background: '#059669' }}
-              >
-                + Add Stop
-              </button>
-            </div>
-            {stops.map((stop, i) => (
-              <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', marginBottom: '8px' }}>
-                <label style={{ ...labelStyle, flex: 1, marginBottom: 0 }}>
-                  Lat (-90 to 90)
-                  <input
-                    style={inputStyle}
-                    type='number'
-                    step='any'
-                    min='-90'
-                    max='90'
-                    placeholder='e.g. 40.7128'
-                    value={stop.latitude}
-                    onChange={(e) => handleStopChange(i, 'latitude', e.target.value)}
-                    required
-                  />
-                </label>
-                <label style={{ ...labelStyle, flex: 1, marginBottom: 0 }}>
-                  Lng (-180 to 180)
-                  <input
-                    style={inputStyle}
-                    type='number'
-                    step='any'
-                    min='-180'
-                    max='180'
-                    placeholder='e.g. -74.0060'
-                    value={stop.longitude}
-                    onChange={(e) => handleStopChange(i, 'longitude', e.target.value)}
-                    required
-                  />
-                </label>
-                <span style={{ fontSize: '13px', color: '#6b7684', paddingBottom: '12px', minWidth: '30px' }}>
-                  #{i + 1}
-                </span>
-                {stops.length > 2 && (
-                  <button
-                    type='button'
-                    onClick={() => handleRemoveStop(i)}
-                    style={{ ...btnSmall, background: '#b91c1c', paddingBottom: '12px' }}
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-            ))}
+          <div className='form-grid'>
+            <label>
+              Vehicle ID
+              <input
+                type='number'
+                min='1'
+                required
+                value={vehicleId}
+                onChange={(e) => setVehicleId(e.target.value)}
+                aria-label='Vehicle ID'
+              />
+            </label>
           </div>
 
-          <button type='submit' disabled={loading}>
-            {loading ? 'Planning...' : 'Plan Route'}
-          </button>
+          <p className='form-section-title' style={{ marginTop: 18 }}>
+            Stops (min 2)
+          </p>
+          {stops.map((stop, i) => (
+            <div key={i} className='stop-row'>
+              <span className='stop-index'>#{i + 1}</span>
+              <label>
+                Latitude (-90 to 90)
+                <input
+                  type='number'
+                  step='any'
+                  min='-90'
+                  max='90'
+                  placeholder='e.g. 40.7128'
+                  required
+                  value={stop.latitude}
+                  onChange={(e) => handleStopChange(i, 'latitude', e.target.value)}
+                  aria-label={`Stop ${i + 1} latitude`}
+                />
+              </label>
+              <label>
+                Longitude (-180 to 180)
+                <input
+                  type='number'
+                  step='any'
+                  min='-180'
+                  max='180'
+                  placeholder='e.g. -74.0060'
+                  required
+                  value={stop.longitude}
+                  onChange={(e) => handleStopChange(i, 'longitude', e.target.value)}
+                  aria-label={`Stop ${i + 1} longitude`}
+                />
+              </label>
+              {stops.length > 2 && (
+                <button
+                  type='button'
+                  className='btn btn-sm btn-ghost'
+                  onClick={() => handleRemoveStop(i)}
+                  aria-label={`Remove stop ${i + 1}`}
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          ))}
+          <div className='row-actions' style={{ marginTop: 4 }}>
+            <button type='button' className='btn btn-sm btn-ghost' onClick={handleAddStop}>
+              + Add stop
+            </button>
+          </div>
+
+          <div style={{ marginTop: 16 }}>
+            <button type='submit' className='btn' disabled={loading}>
+              {loading ? 'Planning…' : 'Plan route'}
+            </button>
+          </div>
         </form>
       </div>
 
-      {/* Status Filter */}
-      <div style={{ marginBottom: '20px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-        <strong style={{ fontSize: '13px' }}>Filter:</strong>
-        <select
-          style={{ ...selectStyle, width: 'auto', marginTop: 0 }}
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          <option value=''>All Statuses</option>
-          {STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {s.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
-            </option>
-          ))}
-        </select>
-      </div>
+      {/* Routes list */}
+      <div className='panel'>
+        <p className='panel-title'>Your routes</p>
+        <p className='panel-sub'>Start, progress, and complete routes from here.</p>
 
-      {/* Routes Table */}
-      {filtered.length === 0 ? (
-        <p className='empty'>No routes found.</p>
-      ) : (
-        <table className='data-table'>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Vehicle</th>
-              <th>Driver</th>
-              <th>Status</th>
-              <th>Stops</th>
-              <th>Distance</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((route) => (
-              <tr key={route.id}>
-                <td>{route.id}</td>
-                <td>{route.vehicle_id}</td>
-                <td>{route.driver_id || '-'}</td>
-                <td>{route.status}</td>
-                <td>{route.stops?.length || 0}</td>
-                <td>{route.distance_km} km</td>
-                <td style={{ whiteSpace: 'nowrap' }}>
-                  {route.status === 'planned' && (
+        <div className='filter-bar'>
+          <label className='filter-label' htmlFor='route-status-filter'>
+            Status
+          </label>
+          <select
+            id='route-status-filter'
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value=''>All statuses</option>
+            {STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {statusLabel(s)}
+              </option>
+            ))}
+          </select>
+          <span className='spacer' />
+          <span className='filter-count'>
+            {filtered.length} of {routes.length} routes
+          </span>
+        </div>
+
+        {filtered.length === 0 ? (
+          <p className='empty'>
+            <strong>No routes yet</strong>
+            Plan your first route above to get started.
+          </p>
+        ) : (
+          filtered.map((route) => {
+            const stopsForRoute = expandedId === route.id ? expandedStops : route.stops || []
+            const isExpanded = expandedId === route.id
+            return (
+              <div key={route.id} className='route-card'>
+                <div className='route-card-head'>
+                  <div>
+                    <div className='route-meta'>
+                      <strong>Route #{route.id}</strong>
+                      <span className={`badge ${STATUS_BADGE[route.status] || 'badge-muted'}`}>
+                        {statusLabel(route.status)}
+                      </span>
+                      {route.score != null && (
+                        <span className='badge badge-violet'>Score {route.score}</span>
+                      )}
+                      <span>Vehicle #{route.vehicle_id}</span>
+                      {route.driver_id != null && <span>Driver #{route.driver_id}</span>}
+                      {route.distance_km != null && <span>{route.distance_km} km</span>}
+                      <span>{route.stops?.length || 0} stops</span>
+                    </div>
+                  </div>
+                  <div className='row-actions'>
                     <button
                       type='button'
-                      style={{ ...btnSmall, background: '#d97706' }}
-                      onClick={() => handleStart(route.id)}
+                      className='btn btn-sm btn-ghost'
+                      onClick={() => toggleExpand(route)}
                     >
-                      Start
+                      {isExpanded ? 'Hide stops' : 'View stops'}
                     </button>
-                  )}
-                  {route.status === 'in_progress' && (
-                    <>
-                      {route.stops?.filter((s) => s.status === 'pending').map((stop) => (
-                        <button
-                          key={stop.id}
-                          type='button'
-                          style={{ ...btnSmall, background: '#0e7490', marginRight: '4px', marginBottom: '4px' }}
-                          onClick={() => handleArrive(stop.id)}
-                        >
-                          Arrive #{stop.sequence}
-                        </button>
-                      ))}
+                    {route.status === 'planned' && (
                       <button
                         type='button'
-                        style={{ ...btnSmall, background: '#059669', marginTop: '4px' }}
+                        className='btn btn-sm btn-warn'
+                        onClick={() => handleStart(route.id)}
+                      >
+                        Start
+                      </button>
+                    )}
+                    {route.status === 'in_progress' && (
+                      <button
+                        type='button'
+                        className='btn btn-sm btn-success'
                         onClick={() => handleComplete(route.id)}
                       >
                         Complete
                       </button>
-                    </>
-                  )}
-                  {route.status === 'completed' && (
-                    <span style={{ fontSize: '13px', color: '#6b7684' }}>Done</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+                    )}
+                  </div>
+                </div>
+
+                <StatusStepper status={route.status} />
+
+                {isExpanded && (
+                  <div style={{ marginTop: 14 }}>
+                    {stopsForRoute.length > 0 && <RouteMap stops={stopsForRoute} />}
+                    {detailLoading && stopsForRoute.length === 0 ? (
+                      <p className='empty'>Loading stops…</p>
+                    ) : stopsForRoute.length === 0 ? (
+                      <p className='empty'>No stops recorded for this route.</p>
+                    ) : (
+                      <ul className='stops-list'>
+                        {[...stopsForRoute]
+                          .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
+                          .map((s) => {
+                            const done = s.status === 'arrived' || s.status === 'completed'
+                            return (
+                              <li key={s.id ?? s.sequence} className={done ? 'stop-done' : ''}>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <span className='stop-seq'>{s.sequence}</span>
+                                  <span>
+                                    {s.latitude ?? s.lat}, {s.longitude ?? s.lng ?? s.lon}
+                                  </span>
+                                  <span className={`badge ${done ? 'badge-success' : 'badge-muted'}`}>
+                                    {s.status ?? 'pending'}
+                                  </span>
+                                  {s.arrived_at && (
+                                    <span className='cell-muted' style={{ fontSize: 12 }}>
+                                      arrived {s.arrived_at}
+                                    </span>
+                                  )}
+                                </span>
+                                {route.status === 'in_progress' && s.status === 'pending' && (
+                                  <button
+                                    type='button'
+                                    className='btn btn-sm'
+                                    onClick={() => handleArrive(s.id)}
+                                  >
+                                    Mark arrived
+                                  </button>
+                                )}
+                              </li>
+                            )
+                          })}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })
+        )}
+      </div>
     </div>
   )
 }

@@ -7,6 +7,7 @@ from typing import List, Optional
 
 from sqlalchemy import (
     String,
+    Float,
     ForeignKey,
     Numeric,
     Integer,
@@ -30,6 +31,7 @@ class Route(Base):
     end_location: Mapped[Optional[str]] = mapped_column(String(255))
     distance_km: Mapped[Decimal] = mapped_column(Numeric(8, 2), default=0)
     status: Mapped[str] = mapped_column(String(20), default="planned")
+    score: Mapped[Optional[float]] = mapped_column(Float, nullable=True, default=None)
 
     vehicle = relationship("Vehicle", back_populates="routes")
     driver = relationship("User", backref="assigned_routes")

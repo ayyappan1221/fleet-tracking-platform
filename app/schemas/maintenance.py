@@ -15,24 +15,25 @@ class MaintenanceCreate(BaseModel):
     vehicle_id: int = Field(..., ge=1)
     type: str = Field(..., max_length=50)
     status: str = Field(default="scheduled", max_length=20)
-    due_mileage: Optional[Decimal] = Field(default=None)
+    due_mileage: Optional[Decimal] = Field(default=None, ge=0)
     due_date: Optional[date] = Field(default=None)
-    notes: Optional[str] = Field(default=None)
+    notes: Optional[str] = Field(default=None, max_length=2000)
+    cost: float = Field(default=0, ge=0)
 
     @field_validator("type")
     @classmethod
     def validate_type(cls, v: str) -> str:
         """Only allow known maintenance types."""
-        if v not in ("oil_change", "tire", "inspection", "repair"):
-            raise ValueError("Type must be: oil_change, tire, inspection, or repair")
+        if v not in ("oil_change", "tire", "inspection", "repair", "issue_report"):
+            raise ValueError("Type must be: oil_change, tire, inspection, repair, or issue_report")
         return v
 
     @field_validator("status")
     @classmethod
     def validate_status(cls, v: str) -> str:
         """Only allow known maintenance statuses."""
-        if v not in ("scheduled", "in_progress", "completed"):
-            raise ValueError("Status must be: scheduled, in_progress, or completed")
+        if v not in ("scheduled", "in_progress", "completed", "pending"):
+            raise ValueError("Status must be: scheduled, in_progress, pending, or completed")
         return v
 
 
@@ -42,24 +43,25 @@ class MaintenanceUpdate(BaseModel):
     vehicle_id: Optional[int] = Field(default=None, ge=1)
     type: Optional[str] = Field(default=None, max_length=50)
     status: Optional[str] = Field(default=None, max_length=20)
-    due_mileage: Optional[Decimal] = Field(default=None)
+    due_mileage: Optional[Decimal] = Field(default=None, ge=0)
     due_date: Optional[date] = Field(default=None)
-    notes: Optional[str] = Field(default=None)
+    notes: Optional[str] = Field(default=None, max_length=2000)
+    cost: Optional[float] = Field(default=None, ge=0)
 
     @field_validator("type")
     @classmethod
     def validate_type(cls, v: Optional[str]) -> Optional[str]:
         """Only allow known maintenance types."""
-        if v is not None and v not in ("oil_change", "tire", "inspection", "repair"):
-            raise ValueError("Type must be: oil_change, tire, inspection, or repair")
+        if v is not None and v not in ("oil_change", "tire", "inspection", "repair", "issue_report"):
+            raise ValueError("Type must be: oil_change, tire, inspection, repair, or issue_report")
         return v
 
     @field_validator("status")
     @classmethod
     def validate_status(cls, v: Optional[str]) -> Optional[str]:
         """Only allow known maintenance statuses."""
-        if v is not None and v not in ("scheduled", "in_progress", "completed"):
-            raise ValueError("Status must be: scheduled, in_progress, or completed")
+        if v is not None and v not in ("scheduled", "in_progress", "completed", "pending"):
+            raise ValueError("Status must be: scheduled, in_progress, pending, or completed")
         return v
 
 

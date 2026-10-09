@@ -10,18 +10,28 @@ from tests.test_api import client  # noqa: F401 — pytest fixture import
 
 def _register_and_login(client, email="loc@test.com"):
     """Register a user and return Bearer headers + token."""
-    client.post(
+    reg = client.post(
         "/api/auth/register",
         json={
             "email": email,
             "name": "Loc Tester",
-            "password": "secret123",
+            "password": "Secret123!",
             "role": "manager",
         },
     )
+    assert reg.status_code == 201, reg.text
+    verify = client.post(
+        "/api/auth/verify-signup",
+        json={
+            "email": email,
+            "code": reg.json()["data"]["dev_otp"],
+            "purpose": "signup_verify",
+        },
+    )
+    assert verify.status_code == 200, verify.text
     login = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "secret123"},
+        data={"username": email, "password": "Secret123!"},
     )
     assert login.status_code == 200, login.text
     token = login.json()["data"]["access_token"]

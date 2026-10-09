@@ -24,7 +24,7 @@ def test_create_and_read_user(db_session: Session):
     user = User(
         email="test@example.com",
         name="Test User",
-        password_hash=hash_password("password123"),
+        password_hash=hash_password("Password123!"),
         role="manager",
     )
     db_session.add(user)

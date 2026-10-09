@@ -27,7 +27,7 @@ def _seed_demo_users():
         for u in DEMO_USERS:
             exists = db.query(User).filter(User.email == u["email"]).first()
             if not exists:
-                db.add(User(email=u["email"], name=u["name"], password_hash=hash_password(u["password"]), role=u["role"]))
+                db.add(User(email=u["email"], name=u["name"], password_hash=hash_password(u["password"]), role=u["role"], email_verified=True))
         db.commit()
     finally:
         db.close()
@@ -35,7 +35,14 @@ def _seed_demo_users():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    Base.metadata.create_all(bind=engine)
+    try:
+        from alembic import command as alembic_command
+        from alembic.config import Config as AlembicConfig
+
+        cfg = AlembicConfig('alembic.ini')
+        alembic_command.upgrade(cfg, 'head')
+    except Exception:
+        Base.metadata.create_all(bind=engine)
     _seed_demo_users()
     yield
 

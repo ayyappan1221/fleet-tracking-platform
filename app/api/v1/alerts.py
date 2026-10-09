@@ -8,6 +8,12 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.authorization import (
+    is_manager,
+    owned_vehicle_ids,
+    require_alert_access,
+    require_vehicle_access,
+)
 from app.core.database import get_db
 from app.core.responses import api_success
 from app.core.security import get_current_user
@@ -31,6 +37,13 @@ def create_alert(
 ):
     """Create a new fleet alert notification."""
     try:
+        if alert_data.vehicle_id is not None:
+            require_vehicle_access(db, alert_data.vehicle_id, current_user)
+        elif not is_manager(current_user):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only managers can create fleet-wide alerts",
+            )
         alert = alert_svc.create_alert(db, alert_data)
         return api_success(alert, "Alert created")
     except ValueError as e:
@@ -49,9 +62,27 @@ def list_alerts(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List alerts, optionally filtered by vehicle_id or read status."""
+    """List alerts: managers see the fleet, others see their own vehicles."""
+    if is_manager(current_user):
+        alerts, total = alert_svc.list_alerts(
+            db, vehicle_id=vehicle_id, is_read=is_read, skip=skip, limit=limit
+        )
+        return api_success(
+            {"alerts": alerts, "total": total},
+            "Alerts fetched",
+        )
+    if vehicle_id is not None:
+        require_vehicle_access(db, vehicle_id, current_user)
+        alerts, total = alert_svc.list_alerts(
+            db, vehicle_id=vehicle_id, is_read=is_read, skip=skip, limit=limit
+        )
+        return api_success(
+            {"alerts": alerts, "total": total},
+            "Alerts fetched",
+        )
+    scope = owned_vehicle_ids(db, current_user)
     alerts, total = alert_svc.list_alerts(
-        db, vehicle_id=vehicle_id, is_read=is_read, skip=skip, limit=limit
+        db, is_read=is_read, skip=skip, limit=limit, vehicle_ids=scope
     )
     return api_success(
         {"alerts": alerts, "total": total},
@@ -66,6 +97,12 @@ def mark_alert_read(
     current_user: User = Depends(get_current_user),
 ):
     """Mark a single alert as read."""
+    alert = require_alert_access(db, alert_id, current_user)
+    if alert.vehicle_id is None and not is_manager(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only managers can mark fleet-wide alerts as read",
+        )
     alert = alert_svc.mark_alert_read(db, alert_id)
     if not alert:
         raise HTTPException(

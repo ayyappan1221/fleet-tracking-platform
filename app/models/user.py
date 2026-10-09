@@ -19,6 +19,8 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(20), nullable=False, default='driver')
     is_active: Mapped[bool] = mapped_column(default=True)
+    # True once the owner proves control of the address via an email OTP.
+    email_verified: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[datetime] = mapped_column(
         default=lambda: datetime.now(timezone.utc),
     )

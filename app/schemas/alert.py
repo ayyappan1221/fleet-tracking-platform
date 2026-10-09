@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field, field_validator
 
 class AlertCreate(BaseModel):
     """Payload for creating a new alert."""
-    vehicle_id: Optional[int] = Field(default=None)
+    vehicle_id: Optional[int] = Field(default=None, ge=1)
     type: str = Field(...)
     severity: str = Field(default="info")
     message: str = Field(..., min_length=1)
@@ -18,16 +18,16 @@ class AlertCreate(BaseModel):
     @classmethod
     def validate_type(cls, v: str) -> str:
         """Only allow known alert types."""
-        if v not in ("geofence", "maintenance", "speed", "low_fuel"):
-            raise ValueError("Type must be: geofence, maintenance, speed, or low_fuel")
+        if v not in ("geofence", "maintenance", "speed", "speeding", "low_fuel", "fuel"):
+            raise ValueError("Type must be: geofence, maintenance, speed/speeding, low_fuel, or fuel")
         return v
 
     @field_validator("severity")
     @classmethod
     def validate_severity(cls, v: str) -> str:
         """Only allow known severity levels."""
-        if v not in ("info", "warning", "critical"):
-            raise ValueError("Severity must be: info, warning, or critical")
+        if v not in ("info", "warning", "high", "critical"):
+            raise ValueError("Severity must be: info, warning, high, or critical")
         return v
 
 

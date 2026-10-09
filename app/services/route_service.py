@@ -70,11 +70,14 @@ def list_routes(
     driver_id: Optional[int] = None,
     skip: int = 0,
     limit: int = 50,
+    vehicle_ids: Optional[list] = None,
 ) -> Tuple[List[Route], int]:
     """List routes with optional filters."""
     query = db.query(Route)
     if vehicle_id:
         query = query.filter(Route.vehicle_id == vehicle_id)
+    if vehicle_ids is not None:
+        query = query.filter(Route.vehicle_id.in_(vehicle_ids))
     if driver_id:
         query = query.filter(Route.driver_id == driver_id)
 

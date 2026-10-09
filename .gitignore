@@ -77,5 +77,15 @@ node_modules/
 # Local config
 opencode.json
 
+# Agent session scratch (never commit)
+.omo/
+.playwright-mcp/
+
+# Local-only helpers and QA artifacts
+start.bat
+seed_manager.py
+qa-*.png
+frontend/vite.local.config.js
+
 # Source documents
 *.pdf

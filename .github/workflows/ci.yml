@@ -9,13 +9,34 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SECRET_KEY: ci-dummy-secret
+      # Keep tests on SQLite: do NOT set DATABASE_URL here.
+      # Postgres wiring (Render/Railway) is documented in docs/ci-deploy-notes.md.
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
       - name: Install dependencies
         run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Lint (ruff/flake8 if present, else py_compile fallback)
+        run: |
+          if python -c "import ruff" 2>/dev/null; then
+            ruff check app tests
+          elif python -c "import flake8" 2>/dev/null; then
+            flake8 app tests
+          else
+            python -m py_compile $(git ls-files 'app/*.py' 'tests/*.py')
+          fi
+      - name: Validate workflow + deploy-config syntax
+        run: |
+          pip install -q pyyaml
+          python -c "import yaml, glob; [yaml.safe_load(open(f)) for f in glob.glob('.github/workflows/*.yml')]; print('workflows YAML OK')"
+          python -c "import yaml; yaml.safe_load(open('render.yaml')); print('render.yaml OK')"
+          python -c "import json; json.load(open('vercel.json')); json.load(open('railway.json')); print('vercel.json + railway.json OK')"
       - name: Run tests
         run: python -m pytest tests/ -q
 

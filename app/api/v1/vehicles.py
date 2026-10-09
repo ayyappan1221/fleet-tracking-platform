@@ -8,6 +8,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.authorization import is_manager, require_vehicle_access
 from app.core.database import get_db
 from app.core.responses import api_success
 from app.core.security import get_current_user
@@ -20,6 +21,7 @@ from app.schemas.vehicle import (
     VehicleListResponse,
 )
 from app.services import vehicle_service as vehicle_svc
+from app.services import behavior_service as behavior_svc
 
 router = APIRouter(prefix="/vehicles", tags=["vehicles"])
 
@@ -54,9 +56,12 @@ def list_vehicles(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List all vehicles, optionally filtered by owner or status."""
+    """List vehicles: managers see the fleet, others see only their own."""
+    effective_owner_id = owner_id
+    if not is_manager(current_user):
+        effective_owner_id = current_user.id
     vehicles, total = vehicle_svc.list_vehicles(
-        db, owner_id=owner_id, status=status, skip=skip, limit=limit
+        db, owner_id=effective_owner_id, status=status, skip=skip, limit=limit
     )
     return api_success(
         {"vehicles": vehicles, "total": total},
@@ -71,13 +76,20 @@ def get_vehicle(
     current_user: User = Depends(get_current_user),
 ):
     """Get a single vehicle by ID."""
-    vehicle = vehicle_svc.get_vehicle_by_id(db, vehicle_id)
-    if not vehicle:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Vehicle {vehicle_id} not found",
-        )
+    vehicle = require_vehicle_access(db, vehicle_id, current_user)
     return api_success(vehicle, "Vehicle fetched")
+
+
+@router.get("/{vehicle_id}/score", response_model=ApiResponse)
+def get_vehicle_score(
+    vehicle_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Server-side behavior score for one vehicle (same engine as /drivers/me/score)."""
+    require_vehicle_access(db, vehicle_id, current_user)
+    result = behavior_svc.compute_vehicle_score(db, vehicle_id)
+    return api_success(result, "Vehicle score computed")
 
 
 @router.patch("/{vehicle_id}", response_model=ApiResponse[VehicleRead])
@@ -88,6 +100,7 @@ def update_vehicle(
     current_user: User = Depends(get_current_user),
 ):
     """Update vehicle details (partial update)."""
+    require_vehicle_access(db, vehicle_id, current_user)
     vehicle = vehicle_svc.update_vehicle(db, vehicle_id, vehicle_data)
     if not vehicle:
         raise HTTPException(
@@ -104,6 +117,7 @@ def delete_vehicle(
     current_user: User = Depends(get_current_user),
 ):
     """Remove a vehicle from the fleet."""
+    require_vehicle_access(db, vehicle_id, current_user)
     success = vehicle_svc.delete_vehicle(db, vehicle_id)
     if not success:
         raise HTTPException(

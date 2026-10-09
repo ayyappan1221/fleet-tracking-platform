@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Authorization layer: role helpers (`is_manager`, `require_manager`, manager-only fleet-wide alert mark-read) with JWT `role` claim enforcement
+- 41 service-layer unit tests (suite total: **93 tests** across 15 test files; 0.3.0 shipped 43 across 10 — service coverage expanded post-release)
+- CI hardening: pinned tested dependency versions documented in `docs/ci-deploy-notes.md`, `/health` healthcheck wired for Render/Railway
+- Frontend: shared `errorMessage()` helper reading FastAPI `detail` (string + validation arrays) alongside success `message`
+- Frontend: 401 interceptor (clears token, redirects to `/login`, skips auth endpoints); JWT `exp` check in `ProtectedRoute`
+- Frontend: `utils/auth.js` (decode role/exp client-side, no signature verify — server verifies)
+- Frontend: catch-all 404 route (`NotFound.jsx`) inside and outside auth shell
+- Frontend: missing CSS (`.stat-value`, `.stat-label`, `.sidebar-signout`), `:focus-visible` outlines, mobile sidebar layout
+- Frontend: aria-labels on placeholder-only inputs and filter selects (Vehicles, Routes, Locations, Maintenance, Alerts)
+
+### Fixed
+- Geofences create contract: send `coordinates` as JSON **string** (was parsed array → 422); drop `is_active` from create (not in `GeofenceCreate`); if "Active" unchecked, PATCH `{is_active: false}` after create
+- Alerts: hide "Mark read" on fleet-wide alerts (`vehicle_id == null`) for non-managers (backend requires manager)
+- All pages: `err.response?.data?.message` → `errorMessage(err, fallback)` so FastAPI `detail` surfaces
+- Vehicles fetch/delete and Dashboard load errors now render in UI (were console-only)
+- README removed overclaims (Tailwind, Leaflet, behavior scoring, email/SMS, screenshots, turn-by-turn); documented ports, health, roles, JWT no-refresh, first-user manager bootstrap, 403 privileged self-register
+
+### Notes
+- No backend logic changes; no test deletions; no dependency upgrades
+
 ## [0.3.0] - 2026-09-20 (Review-II Release)
 
 ### Added
@@ -18,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Frontend Locations page with GPS pinger form, location listing, and latest-lookup
 - Frontend Dashboard aligned to all 7 backend summary keys
 - GitHub Actions CI pipeline (backend pytest + frontend build)
-- 43 pytest tests across 10 test files with 40%+ service coverage
+- 43 pytest tests across 10 test files with 40%+ service coverage (suite later expanded to 93 total / 41 service tests — see [Unreleased])
 - Production config hardening: Postgres URL normalization, multi-origin CORS, SQLite thread-safety, lifespan startup
 - ER diagram v2 covering all 8 database tables
 - README v2 with 27-row endpoint table, env vars, and deploy instructions

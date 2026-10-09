@@ -20,6 +20,9 @@ def client():
         db = TestingSessionLocal()
         try:
             yield db
+        except Exception:
+            db.rollback()
+            raise
         finally:
             db.close()
 
@@ -36,7 +39,7 @@ def test_register_returns_envelope(client):
         json={
             "email": "api@test.com",
             "name": "API Tester",
-            "password": "secret123",
+            "password": "Secret123!",
             "role": "manager",
         },
     )
@@ -63,15 +66,24 @@ def test_create_vehicle_with_jwt_sets_owner(client):
         json={
             "email": "owner@test.com",
             "name": "Fleet Owner",
-            "password": "secret123",
+            "password": "Secret123!",
             "role": "manager",
         },
     )
     user_id = reg.json()["data"]["id"]
+    verify = client.post(
+        "/api/auth/verify-signup",
+        json={
+            "email": "owner@test.com",
+            "code": reg.json()["data"]["dev_otp"],
+            "purpose": "signup_verify",
+        },
+    )
+    assert verify.status_code == 200, verify.text
 
     login = client.post(
         "/api/auth/login",
-        data={"username": "owner@test.com", "password": "secret123"},
+        data={"username": "owner@test.com", "password": "Secret123!"},
     )
     token = login.json()["data"]["access_token"]
 

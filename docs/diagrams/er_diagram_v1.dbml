@@ -1,6 +1,7 @@
 // Entity-Relationship Diagram v1
 // Vehicle Tracking & Fleet Monitoring Platform
 // Generated for Day 11 Review-I
+// STALE: superseded by er_diagram.md (v2) covering all 8 tables — do not use as current schema
 
 Table users {
   id int [pk] [auto]

@@ -22,6 +22,9 @@ def client():
         db = TestingSessionLocal()
         try:
             yield db
+        except Exception:
+            db.rollback()
+            raise
         finally:
             db.close()
 
@@ -39,18 +42,27 @@ def test_s1_signup_login_vehicle_list(client):
         json={
             "email": "s1@test.com",
             "name": "S1 User",
-            "password": "secret123",
+            "password": "Secret123!",
             "role": "manager",
         },
     )
     assert reg.status_code == 201
     body = reg.json()
     assert body["success"] is True
+    verify = client.post(
+        "/api/auth/verify-signup",
+        json={
+            "email": "s1@test.com",
+            "code": body["data"]["dev_otp"],
+            "purpose": "signup_verify",
+        },
+    )
+    assert verify.status_code == 200, verify.text
 
     # login with form data
     login = client.post(
         "/api/auth/login",
-        data={"username": "s1@test.com", "password": "secret123"},
+        data={"username": "s1@test.com", "password": "Secret123!"},
     )
     assert login.status_code == 200
     login_body = login.json()
@@ -77,16 +89,25 @@ def test_s2_route_lifecycle(client):
         json={
             "email": "s2@test.com",
             "name": "S2 User",
-            "password": "secret123",
+            "password": "Secret123!",
             "role": "manager",
         },
     )
     assert reg.status_code == 201
     assert reg.json()["success"] is True
+    verify = client.post(
+        "/api/auth/verify-signup",
+        json={
+            "email": "s2@test.com",
+            "code": reg.json()["data"]["dev_otp"],
+            "purpose": "signup_verify",
+        },
+    )
+    assert verify.status_code == 200, verify.text
 
     login = client.post(
         "/api/auth/login",
-        data={"username": "s2@test.com", "password": "secret123"},
+        data={"username": "s2@test.com", "password": "Secret123!"},
     )
     assert login.status_code == 200
     token = login.json()["data"]["access_token"]
@@ -167,7 +188,7 @@ def test_s3_errors(client):
         json={
             "email": "dup@test.com",
             "name": "Dup User",
-            "password": "secret123",
+            "password": "Secret123!",
             "role": "manager",
         },
     )
@@ -177,26 +198,36 @@ def test_s3_errors(client):
         json={
             "email": "dup@test.com",
             "name": "Dup User",
-            "password": "secret123",
+            "password": "Secret123!",
             "role": "manager",
         },
     )
     assert second.status_code == 400
 
     # create same license plate twice -> second 400
+    # Security: only the first user may bootstrap as manager.
     reg = client.post(
         "/api/auth/register",
         json={
             "email": "plate@test.com",
             "name": "Plate User",
-            "password": "secret123",
-            "role": "manager",
+            "password": "Secret123!",
+            "role": "driver",
         },
     )
     assert reg.status_code == 201
+    verify = client.post(
+        "/api/auth/verify-signup",
+        json={
+            "email": "plate@test.com",
+            "code": reg.json()["data"]["dev_otp"],
+            "purpose": "signup_verify",
+        },
+    )
+    assert verify.status_code == 200, verify.text
     login = client.post(
         "/api/auth/login",
-        data={"username": "plate@test.com", "password": "secret123"},
+        data={"username": "plate@test.com", "password": "Secret123!"},
     )
     token = login.json()["data"]["access_token"]
     headers = {"Authorization": f"Bearer {token}"}

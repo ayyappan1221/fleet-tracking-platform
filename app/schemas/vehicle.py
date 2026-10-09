@@ -46,7 +46,7 @@ class VehicleUpdate(BaseModel):
     year: Optional[int] = Field(default=None, ge=1900, le=2030)
     vin: Optional[str] = None
     fleet_id: Optional[str] = None
-    current_mileage: Optional[Decimal] = None
+    current_mileage: Optional[Decimal] = Field(default=None, ge=0)
     status: Optional[str] = None
 
     @field_validator("status")

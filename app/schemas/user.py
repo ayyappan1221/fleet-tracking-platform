@@ -1,7 +1,13 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
+
+from app.core.password import (
+    MIN_PASSWORD_LENGTH,
+    check_password_strength,
+    password_strength_message,
+)
 
 
 class UserBase(BaseModel):
@@ -17,8 +23,16 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    password: str
+    password: str = Field(..., min_length=MIN_PASSWORD_LENGTH, max_length=128)
     role: str = 'driver'
+
+    @field_validator('password')
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        unmet = check_password_strength(v)
+        if unmet:
+            raise ValueError(password_strength_message(v))
+        return v
 
     @field_validator('role')
     @classmethod

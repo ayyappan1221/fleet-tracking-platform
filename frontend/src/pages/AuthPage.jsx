@@ -1,24 +1,46 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
+import { errorMessage } from '../utils/errors.js';
 
-// ── Hard-coded demo credentials for all user types ──
-// Password for all demo accounts: Password@123
-export const DEMO_CREDENTIALS = {
-  manager: { email: 'manager@fleet.com', password: 'Password@123', name: 'Demo Manager', role: 'manager' },
-  driver: { email: 'driver@fleet.com', password: 'Password@123', name: 'Demo Driver', role: 'driver' },
-  mechanic: { email: 'mechanic@fleet.com', password: 'Password@123', name: 'Demo Mechanic', role: 'mechanic' },
+const ROLES = ['driver', 'manager', 'mechanic'];
+
+const ROLE_NOTES = {
+  driver: 'Drivers run planned routes, mark stops arrived, and record GPS pings.',
+  manager: 'Managers see fleet-wide alerts, vehicles, routes, and can mark alerts read.',
+  mechanic: 'Mechanics track maintenance records and update their status.',
 };
 
-// Keep ROLES derived from DEMO_CREDENTIALS so they stay in sync
-const ROLES = Object.keys(DEMO_CREDENTIALS);
+// Same five rules the backend enforces (app/core/password.py).
+const PASSWORD_RULES = [
+  { key: 'length', label: 'At least 8 characters', test: (v) => v.length >= 8 },
+  { key: 'upper', label: 'One uppercase letter (A–Z)', test: (v) => /[A-Z]/.test(v) },
+  { key: 'lower', label: 'One lowercase letter (a–z)', test: (v) => /[a-z]/.test(v) },
+  { key: 'digit', label: 'One digit (0–9)', test: (v) => /[0-9]/.test(v) },
+  {
+    key: 'special',
+    label: 'One special character (e.g. !@#$)',
+    test: (v) => /[^A-Za-z0-9]/.test(v),
+  },
+];
+
+const passwordMeetsAll = (value) => PASSWORD_RULES.every((r) => r.test(value || ''));
+
+// Seeded by the backend on startup (app/main.py) — pre-verified demo logins.
+const DEMO_ACCOUNTS = {
+  manager: { email: 'manager@fleet.com', password: 'Password@123' },
+  driver: { email: 'driver@fleet.com', password: 'Password@123' },
+  mechanic: { email: 'mechanic@fleet.com', password: 'Password@123' },
+};
 
 export default function AuthPage() {
   const [tab, setTab] = useState('signin');
+  const [method, setMethod] = useState('password'); // signin only: 'password' | 'otp'
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Sign In fields
+  // Shared fields
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -26,152 +48,320 @@ export default function AuthPage() {
   const [name, setName] = useState('');
   const [role, setRole] = useState('driver');
 
+  // OTP step state (signup verification + otp login share the code box)
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [demoCode, setDemoCode] = useState('');
+
   const navigate = useNavigate();
 
-  const fillDemo = (role) => {
-    const creds = DEMO_CREDENTIALS[role];
-    setEmail(creds.email);
-    setPassword(creds.password);
-    if (tab === 'signup') {
-      setName(creds.name);
-      setRole(creds.role);
-    }
+  const switchTab = (next) => {
+    setTab(next);
     setError('');
+    setNotice('');
+    setOtpSent(false);
+    setOtpCode('');
+    setDemoCode('');
   };
 
+  const switchMethod = (next) => {
+    setMethod(next);
+    setError('');
+    setNotice('');
+    setOtpSent(false);
+    setOtpCode('');
+    setDemoCode('');
+  };
+
+  const storeTokenAndGo = (res) => {
+    localStorage.setItem('token', res.data.data.access_token);
+    navigate('/');
+  };
+
+  // ----- password sign in ----------------------------------------------------
   const handleSignIn = async (e) => {
     e.preventDefault();
     setError('');
+    setNotice('');
     setLoading(true);
     try {
       const res = await api.login(email, password);
-      localStorage.setItem('token', res.data.data.access_token);
-      navigate('/');
+      storeTokenAndGo(res);
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed. Please try again.');
+      const msg = errorMessage(err, 'Login failed. Please try again.');
+      setError(msg);
+      if (/not verified/i.test(msg)) {
+        setNotice('Your email is not verified yet — switch to Sign Up and enter the code sent at registration, or request a fresh code below.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  // ----- sign up -------------------------------------------------------------
   const handleSignUp = async (e) => {
+    e.preventDefault();
+    setError('');
+    setNotice('');
+    if (!passwordMeetsAll(password)) {
+      setError('Password does not meet all strength requirements yet.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await api.register({ email, name, password, role });
+      const devOtp = res?.data?.data?.dev_otp;
+      setOtpSent(true);
+      setDemoCode(devOtp || '');
+      setNotice(
+        devOtp
+          ? 'Account created. Enter the 6-digit code below to activate it.'
+          : 'Account created. Check your email for the 6-digit activation code.'
+      );
+    } catch (err) {
+      setError(errorMessage(err, 'Registration failed. Please try again.'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifySignup = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      await api.register({ email, name, password, role });
+      await api.verifySignup(email, otpCode.trim());
       const res = await api.login(email, password);
-      localStorage.setItem('token', res.data.data.access_token);
-      navigate('/');
+      storeTokenAndGo(res);
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+      setError(errorMessage(err, 'Verification failed. Check the code and try again.'));
     } finally {
       setLoading(false);
     }
   };
 
-  const tabStyle = (active) => ({
-    flex: 1,
-    padding: '8px 0',
-    border: 'none',
-    background: active ? '#0e7490' : 'transparent',
-    color: active ? '#fff' : '#6b7684',
-    fontSize: '14px',
-    fontWeight: 600,
-    borderRadius: '6px',
-    cursor: 'pointer',
-    transition: 'background 0.15s, color 0.15s',
-  });
+  const handleResendSignupCode = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      const res = await api.requestOtp(email, 'signup_verify');
+      const devOtp = res?.data?.data?.dev_otp;
+      setDemoCode(devOtp || '');
+      setNotice('A fresh code was sent.');
+    } catch (err) {
+      setError(errorMessage(err, 'Could not resend the code.'));
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const selectStyle = {
-    width: '100%',
-    marginTop: '6px',
-    padding: '10px',
-    border: '1px solid #ccd2d9',
-    borderRadius: '8px',
-    fontSize: '14px',
-    background: '#fff',
+  // ----- OTP sign in ---------------------------------------------------------
+  const handleSendLoginCode = async (e) => {
+    e.preventDefault();
+    setError('');
+    setNotice('');
+    setLoading(true);
+    try {
+      const res = await api.requestOtp(email, 'login_otp');
+      const devOtp = res?.data?.data?.dev_otp;
+      setOtpSent(true);
+      setDemoCode(devOtp || '');
+      setNotice(
+        devOtp
+          ? 'Code sent. Enter it below to sign in.'
+          : 'Code sent. Check your email, then enter it below.'
+      );
+    } catch (err) {
+      setError(errorMessage(err, 'Could not send a login code.'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyLoginCode = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const res = await api.loginWithOtp(email, otpCode.trim());
+      storeTokenAndGo(res);
+    } catch (err) {
+      setError(errorMessage(err, 'Login failed. Check the code and try again.'));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className='auth-wrap'>
       <div className='auth-card'>
+        <div className='auth-badge' aria-hidden='true'>
+          F
+        </div>
         <h1>{tab === 'signin' ? 'Welcome back' : 'Create account'}</h1>
         <p className='sub'>
           {tab === 'signin'
-            ? 'Sign in to your fleet dashboard'
-            : 'Register to get started'}
+            ? 'Sign in with your password or a one-time email code.'
+            : 'Register once — the first account becomes the manager; later sign-ups may be restricted.'}
         </p>
 
-        {/* Tab bar */}
-        <div style={{ display: 'flex', gap: '6px', background: '#f1f5f9', borderRadius: '8px', padding: '4px', marginBottom: '20px' }}>
-          <button type='button' style={tabStyle(tab === 'signin')} onClick={() => { setTab('signin'); setError(''); }}>
+        <div className='tabs' role='tablist' aria-label='Sign in or sign up'>
+          <button
+            type='button'
+            role='tab'
+            aria-selected={tab === 'signin'}
+            className={`tab${tab === 'signin' ? ' active' : ''}`}
+            onClick={() => switchTab('signin')}
+          >
             Sign In
           </button>
-          <button type='button' style={tabStyle(tab === 'signup')} onClick={() => { setTab('signup'); setError(''); }}>
+          <button
+            type='button'
+            role='tab'
+            aria-selected={tab === 'signup'}
+            className={`tab${tab === 'signup' ? ' active' : ''}`}
+            onClick={() => switchTab('signup')}
+          >
             Sign Up
           </button>
         </div>
 
         {error && <p className='error'>{error}</p>}
-
-        <div style={{ marginBottom: '16px', padding: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
-          <p style={{ fontSize: '12px', fontWeight: 700, color: '#334155', margin: '0 0 8px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Demo Accounts — Click to Fill</p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-            {Object.entries(DEMO_CREDENTIALS).map(([key, creds]) => (
-              <button
-                key={key}
-                type='button'
-                onClick={() => fillDemo(key)}
-                style={{
-                  padding: '10px 6px',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '8px',
-                  background: '#fff',
-                  cursor: 'pointer',
-                  textAlign: 'center',
-                  lineHeight: 1.3,
-                }}
-              >
-                <div style={{ fontSize: '13px', fontWeight: 700, color: '#0e7490', textTransform: 'capitalize' }}>{key}</div>
-                <div style={{ fontSize: '11px', color: '#64748b', wordBreak: 'break-all' }}>{creds.email}</div>
-                <div style={{ fontSize: '11px', color: '#94a3b8' }}>Password@123</div>
-              </button>
-            ))}
-          </div>
-          <p style={{ fontSize: '11px', color: '#94a3b8', margin: '8px 0 0 0', textAlign: 'center' }}>All demo accounts use the same password</p>
-        </div>
+        {notice && <p className='success-note'>{notice}</p>}
+        {demoCode && (
+          <p className='demo-code' role='status'>
+            Demo mode — your code is <strong>{demoCode}</strong>
+          </p>
+        )}
 
         {tab === 'signin' ? (
-          <form onSubmit={handleSignIn}>
-            <label>
-              Email
-              <input
-                type='email'
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </label>
-            <label>
-              Password
-              <input
-                type='password'
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </label>
-            <button type='submit' disabled={loading}>
-              {loading ? 'Signing in…' : 'Sign In'}
-            </button>
-          </form>
-        ) : (
+          <div>
+            <div className='tabs' role='tablist' aria-label='Sign in method'>
+              <button
+                type='button'
+                role='tab'
+                aria-selected={method === 'password'}
+                className={`tab${method === 'password' ? ' active' : ''}`}
+                onClick={() => switchMethod('password')}
+              >
+                Password
+              </button>
+              <button
+                type='button'
+                role='tab'
+                aria-selected={method === 'otp'}
+                className={`tab${method === 'otp' ? ' active' : ''}`}
+                onClick={() => switchMethod('otp')}
+              >
+                Email code
+              </button>
+            </div>
+
+            {method === 'password' ? (
+              <form onSubmit={handleSignIn}>
+                <label>
+                  Email
+                  <input
+                    type='email'
+                    autoComplete='email'
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </label>
+                <label>
+                  Password
+                  <input
+                    type='password'
+                    autoComplete='current-password'
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                </label>
+                <button type='submit' className='btn btn-block' disabled={loading}>
+                  {loading ? 'Signing in…' : 'Sign In'}
+                </button>
+                <div className='demo-row' aria-label='Demo logins'>
+                  <span className='hint'>Try a demo account:</span>
+                  {Object.keys(DEMO_ACCOUNTS).map((demoRole) => (
+                    <button
+                      key={demoRole}
+                      type='button'
+                      className='btn btn-sm btn-ghost'
+                      disabled={loading}
+                      onClick={async () => {
+                        setError('');
+                        setNotice('');
+                        setLoading(true);
+                        try {
+                          const creds = DEMO_ACCOUNTS[demoRole];
+                          const res = await api.login(creds.email, creds.password);
+                          storeTokenAndGo(res);
+                        } catch (err) {
+                          setError(errorMessage(err, 'Demo login failed. Is the backend seeded?'));
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                    >
+                      {demoRole}
+                    </button>
+                  ))}
+                </div>
+              </form>
+            ) : !otpSent ? (
+              <form onSubmit={handleSendLoginCode}>
+                <label>
+                  Email
+                  <input
+                    type='email'
+                    autoComplete='email'
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </label>
+                <button type='submit' className='btn btn-block' disabled={loading}>
+                  {loading ? 'Sending code…' : 'Send login code'}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleVerifyLoginCode}>
+                <label>
+                  6-digit code
+                  <input
+                    type='text'
+                    inputMode='numeric'
+                    autoComplete='one-time-code'
+                    maxLength={6}
+                    placeholder='e.g. 482913'
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                    required
+                  />
+                </label>
+                <button type='submit' className='btn btn-block' disabled={loading}>
+                  {loading ? 'Verifying…' : 'Sign In with code'}
+                </button>
+                <button
+                  type='button'
+                  className='btn btn-ghost btn-block'
+                  disabled={loading}
+                  onClick={() => switchMethod('otp')}
+                >
+                  Use a different email
+                </button>
+              </form>
+            )}
+          </div>
+        ) : !otpSent ? (
           <form onSubmit={handleSignUp}>
             <label>
               Name
               <input
                 type='text'
+                autoComplete='name'
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
@@ -181,6 +371,7 @@ export default function AuthPage() {
               Email
               <input
                 type='email'
+                autoComplete='email'
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -190,18 +381,30 @@ export default function AuthPage() {
               Password
               <input
                 type='password'
+                autoComplete='new-password'
+                minLength={8}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                aria-describedby='pw-rules'
               />
             </label>
+            <ul className='pw-checks' id='pw-rules' aria-label='Password requirements'>
+              {PASSWORD_RULES.map((rule) => {
+                const met = rule.test(password || '');
+                return (
+                  <li key={rule.key} className={`pw-check${met ? ' met' : ''}`}>
+                    <span className='pw-box' aria-hidden='true'>
+                      {met ? '✓' : ''}
+                    </span>
+                    {rule.label}
+                  </li>
+                );
+              })}
+            </ul>
             <label>
               Role
-              <select
-                style={selectStyle}
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-              >
+              <select value={role} onChange={(e) => setRole(e.target.value)}>
                 {ROLES.map((r) => (
                   <option key={r} value={r}>
                     {r.charAt(0).toUpperCase() + r.slice(1)}
@@ -209,8 +412,41 @@ export default function AuthPage() {
                 ))}
               </select>
             </label>
-            <button type='submit' disabled={loading}>
+            <p className='role-note'>{ROLE_NOTES[role]}</p>
+            <button
+              type='submit'
+              className='btn btn-block'
+              disabled={loading || !passwordMeetsAll(password)}
+            >
               {loading ? 'Creating account…' : 'Sign Up'}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleVerifySignup}>
+            <label>
+              6-digit activation code
+              <input
+                type='text'
+                inputMode='numeric'
+                autoComplete='one-time-code'
+                maxLength={6}
+                placeholder='e.g. 482913'
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                required
+              />
+              <span className='hint'>Sent to {email}. It expires in 10 minutes.</span>
+            </label>
+            <button type='submit' className='btn btn-block' disabled={loading}>
+              {loading ? 'Verifying…' : 'Verify & create account'}
+            </button>
+            <button
+              type='button'
+              className='btn btn-ghost btn-block'
+              disabled={loading}
+              onClick={handleResendSignupCode}
+            >
+              Resend code
             </button>
           </form>
         )}

@@ -1,14 +1,38 @@
 """
 Alert service layer - business logic for fleet notifications and warnings.
 """
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Tuple
 
-from sqlalchemy import desc
+from sqlalchemy import desc, or_
 from sqlalchemy.orm import Session
 
 from app.models.alert import Alert
 from app.schemas.alert import AlertCreate
+
+
+def _ensure_aware(dt: Optional[datetime]) -> Optional[datetime]:
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
+def recent_alert_exists(
+    db: Session, vehicle_id: int, alert_types: List[str], minutes: int = 5
+) -> bool:
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=minutes)
+    q = db.query(Alert).filter(Alert.vehicle_id == vehicle_id)
+    if len(alert_types) == 1:
+        q = q.filter(Alert.type == alert_types[0])
+    else:
+        q = q.filter(Alert.type.in_(alert_types))
+    for alert in q.order_by(desc(Alert.created_at)).limit(20).all():
+        created = _ensure_aware(alert.created_at)
+        if created is not None and created >= cutoff:
+            return True
+    return False
 
 
 def get_alert_by_id(db: Session, alert_id: int) -> Optional[Alert]:
@@ -22,6 +46,7 @@ def list_alerts(
     is_read: Optional[bool] = None,
     skip: int = 0,
     limit: int = 50,
+    vehicle_ids: Optional[list] = None,
 ) -> Tuple[List[Alert], int]:
     """
     Get a paginated list of alerts.
@@ -30,6 +55,10 @@ def list_alerts(
     query = db.query(Alert)
     if vehicle_id is not None:
         query = query.filter(Alert.vehicle_id == vehicle_id)
+    if vehicle_ids is not None:
+        query = query.filter(
+            or_(Alert.vehicle_id.in_(vehicle_ids), Alert.vehicle_id.is_(None))
+        )
     if is_read is not None:
         query = query.filter(Alert.is_read == is_read)
 

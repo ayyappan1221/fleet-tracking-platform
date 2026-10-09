@@ -49,8 +49,24 @@ class Settings:
     # Auth
     BCRYPT_ROUNDS: int = int(_get_env("BCRYPT_ROUNDS", "12"))
 
+    # Email OTP (signup verification + OTP login). When SMTP_HOST is empty
+    # no email is sent; codes are logged and (outside production) returned
+    # in the dev-only `dev_otp` response field so the flow stays testable.
+    SMTP_HOST: str = _get_env("SMTP_HOST", "")
+    SMTP_PORT: int = int(_get_env("SMTP_PORT", "587"))
+    SMTP_USER: str = _get_env("SMTP_USER", "")
+    SMTP_PASSWORD: str = _get_env("SMTP_PASSWORD", "")
+    SMTP_FROM: str = _get_env("SMTP_FROM", "no-reply@localhost")
+    SMTP_TLS: str = _get_env("SMTP_TLS", "true")
+    OTP_TTL_SECONDS: int = int(_get_env("OTP_TTL_SECONDS", "600"))
+    OTP_COOLDOWN_SECONDS: int = int(_get_env("OTP_COOLDOWN_SECONDS", "60"))
+    OTP_MAX_ATTEMPTS: int = int(_get_env("OTP_MAX_ATTEMPTS", "5"))
+
     # CORS
     FRONTEND_ORIGIN: str = _get_env("FRONTEND_ORIGIN", "http://localhost:5173")
+
+    # Intelligence features
+    SPEED_LIMIT_KMH: float = float(_get_env("SPEED_LIMIT_KMH", "100"))
 
     @property
     def frontend_origins_list(self) -> list[str]:

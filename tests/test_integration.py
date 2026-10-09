@@ -26,7 +26,7 @@ def test_db(db_session: Session):
     user = User(
         email="fleet_manager@test.com",
         name="Test Manager",
-        password_hash=hash_password("password123"),
+        password_hash=hash_password("Password123!"),
         role="manager",
     )
     db_session.add(user)

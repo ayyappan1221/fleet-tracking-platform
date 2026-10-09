@@ -1,9 +1,15 @@
+# Render deploy config for the FastAPI backend.
+# Health endpoint is /health (see app/main.py). API routers live under /api/*.
+# Set FRONTEND_ORIGIN in the Render dashboard to your Vercel URL
+# (placeholder below must be replaced; sync: false keeps dashboard value).
+# DATABASE_URL is wired from the managed Postgres below; SQLite is local/CI only.
 services:
   - type: web
     name: fleet-tracking-backend
     env: python
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
         fromDatabase:
